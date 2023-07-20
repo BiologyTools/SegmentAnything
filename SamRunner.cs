@@ -109,5 +109,12 @@ namespace SegmentAnything
             }
             return outputMaskSam;
         }
+
+        public void Dispose()
+        {
+            _sessionPreprocess.Dispose();
+            _sessionSegmentAnything.Dispose();
+            _inputShape = null;
+        }
     }
 }

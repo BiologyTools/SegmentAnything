@@ -10,6 +10,7 @@ namespace SegmentAnything
         public MainForm()
         {
             InitializeComponent();
+            Settings.Load();
             if (Settings.GetSettings("PreModel") == "")
             {
                 Init init = new Init();
@@ -18,6 +19,7 @@ namespace SegmentAnything
             }
             preModelPath = Settings.GetSettings("PreModel");
             samModelPath = Settings.GetSettings("Model");
+            Settings.Save();
         }
         public static SamRunner samRunner;
         public static Image im;
@@ -46,6 +48,8 @@ namespace SegmentAnything
             Stopwatch st = new Stopwatch();
             st.Start();
             Console.WriteLine("Initializing SAM.");
+            if (samRunner != null)
+                samRunner.Dispose();
             samRunner = new SamRunner(preModelPath, samModelPath);
             Console.WriteLine("Initialized SAM. " + st.ElapsedMilliseconds / 1000);
             Console.WriteLine("Reading input image.");
@@ -56,6 +60,13 @@ namespace SegmentAnything
             src.SaveImage(resizeImagePath);
             Console.WriteLine("Loading resize Image." + st.ElapsedMilliseconds / 1000);
             samRunner.LoadImage(src);
+        }
+
+        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if(saveFileDialog.ShowDialog() != DialogResult.OK)
+                return;
+            maskBox.Image.Save(saveFileDialog.FileName);
         }
     }
 }
