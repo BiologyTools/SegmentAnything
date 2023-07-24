@@ -9,7 +9,10 @@ namespace SegmentAnything
         private int[] _inputShape;
         private bool _modelLoaded = false;
         private DenseTensor<float>? _imageEmbeddings;
-
+        private List<DisposableNamedOnnxValue> results;
+        private Microsoft.ML.OnnxRuntime.Tensors.DenseTensor<byte> inputTensor;
+        private List<NamedOnnxValue> container;
+        private byte[] inputTensorValues;
         public SamRunner(string preprocessModelPath, string segmentAnythingModelPath)
         {
             var sessionPrePath = Path.GetFullPath(preprocessModelPath);
@@ -36,7 +39,7 @@ namespace SegmentAnything
 
         public bool LoadImage(Mat image)
         {
-            var inputTensorValues = new byte[_inputShape[0] * _inputShape[1] * _inputShape[2] * _inputShape[3]];
+            inputTensorValues = new byte[_inputShape[0] * _inputShape[1] * _inputShape[2] * _inputShape[3]];
 
             for (int i = 0; i < _inputShape[2]; i++)
             {
@@ -49,17 +52,14 @@ namespace SegmentAnything
                 }
             }
 
-            var inputTensor = new DenseTensor<byte>(inputTensorValues, _inputShape.Select(d => d).ToArray());
+            inputTensor = new DenseTensor<byte>(inputTensorValues, _inputShape.Select(d => d).ToArray());
 
-            var container = new List<NamedOnnxValue>
+            container = new List<NamedOnnxValue>
             {
                 NamedOnnxValue.CreateFromTensor("input", inputTensor)
             };
-
-            List<DisposableNamedOnnxValue> results = (List<DisposableNamedOnnxValue>)_sessionPreprocess.Run(container);
-
+            results = (List<DisposableNamedOnnxValue>)_sessionPreprocess.Run(container);
             _imageEmbeddings = (DenseTensor<float>)results[0].Value;
-
             return true;
         }
 
@@ -96,7 +96,7 @@ namespace SegmentAnything
                 NamedOnnxValue.CreateFromTensor("orig_im_size", imageSize)
             };
 
-            List<DisposableNamedOnnxValue> results = (List<DisposableNamedOnnxValue>)_sessionSegmentAnything.Run(container);
+            results = (List<DisposableNamedOnnxValue>)_sessionSegmentAnything.Run(container);
 
             var outputMasksValues = results[0].AsTensor<float>().ToArray();
             var outputMaskSam = new Mat(_inputShape[2], _inputShape[3], MatType.CV_8UC1);
@@ -112,9 +112,17 @@ namespace SegmentAnything
 
         public void Dispose()
         {
-            _sessionPreprocess.Dispose();
-            _sessionSegmentAnything.Dispose();
-            _inputShape = null;
+            container.Clear();
+            container = null;
+            inputTensor = null;
+            for (int i = 0; i < results.Count; i++)
+            {
+                results[i].Dispose();
+            }
+            results = null;
+            _imageEmbeddings = new DenseTensor<float>(1);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
     }
 }

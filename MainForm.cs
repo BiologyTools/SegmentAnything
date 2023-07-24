@@ -20,6 +20,7 @@ namespace SegmentAnything
             preModelPath = Settings.GetSettings("PreModel");
             samModelPath = Settings.GetSettings("Model");
             Settings.Save();
+            samRunner = new SamRunner(preModelPath, samModelPath);
         }
         public static SamRunner samRunner;
         public static Image im;
@@ -36,7 +37,7 @@ namespace SegmentAnything
             m.SaveImage(temp);
             maskBox.Image = (Image)Image.FromFile(temp);
         }
-
+        bool disp = false;
         private void openToolStripMenuItem_Click_1(object sender, EventArgs e)
         {
             if (openFileDialog.ShowDialog() != DialogResult.OK)
@@ -47,19 +48,25 @@ namespace SegmentAnything
             string resizeImagePath = "resize.jpg";
             Stopwatch st = new Stopwatch();
             st.Start();
-            Console.WriteLine("Initializing SAM.");
-            if (samRunner != null)
+            if (disp)
+            {
                 samRunner.Dispose();
-            samRunner = new SamRunner(preModelPath, samModelPath);
-            Console.WriteLine("Initialized SAM. " + st.ElapsedMilliseconds / 1000);
+                samRunner = null;
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                samRunner = new SamRunner(preModelPath, samModelPath);
+            }
             Console.WriteLine("Reading input image.");
             Mat src = Cv2.ImRead(inputImagePath);
             Mat dst = Mat.Zeros(samRunner.GetInputSize(), MatType.CV_8UC3);
             Cv2.Resize(src, src, samRunner.GetInputSize());
-            Console.WriteLine("Saving resize image." + st.ElapsedMilliseconds / 1000);
+            Console.WriteLine("Saving resize image. " + st.ElapsedMilliseconds / 1000 + "s");
             src.SaveImage(resizeImagePath);
-            Console.WriteLine("Loading resize Image." + st.ElapsedMilliseconds / 1000);
+            Console.WriteLine("Loading resize Image. " + st.ElapsedMilliseconds / 1000 + "s");
             samRunner.LoadImage(src);
+            src.Dispose();
+            dst.Dispose();
+            disp = true;
         }
 
         private void saveToolStripMenuItem_Click(object sender, EventArgs e)
